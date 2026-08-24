@@ -1,0 +1,40 @@
+name: Keep Valkey Active
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install ioredis
+        run: npm install ioredis
+
+      - name: Keep Valkey active
+        env:
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: |
+          node -e '
+            const Redis = require("ioredis");
+            const redis = new Redis(process.env.REDIS_URL);
+
+            redis.set("keepalive", Date.now(), "EX", 600)
+              .then(() => {
+                console.log("Valkey active");
+                return redis.quit();
+              })
+              .catch((err) => {
+                console.error(err);
+                process.exit(1);
+              });
+          '
