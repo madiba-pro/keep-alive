@@ -1,0 +1,47 @@
+name: Keep PostgreSQL Active
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install PostgreSQL client
+        run: npm install pg
+
+      - name: Keep PostgreSQL active
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          node -e '
+            const { Client } = require("pg");
+
+            const client = new Client({
+              connectionString: process.env.DATABASE_URL,
+              ssl: {
+                rejectUnauthorized: false
+              }
+            });
+
+            client.connect()
+              .then(() => client.query("SELECT 1"))
+              .then(() => {
+                console.log("PostgreSQL active");
+                return client.end();
+              })
+              .catch((err) => {
+                console.error(err);
+                process.exit(1);
+              });
+          '
